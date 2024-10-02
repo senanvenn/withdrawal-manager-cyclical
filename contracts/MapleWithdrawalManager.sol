@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
+import {VennFirewallConsumer} from "@ironblocks/firewall-consumer/contracts/consumers/VennFirewallConsumer.sol";
 import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
@@ -66,7 +67,7 @@ import { MapleWithdrawalManagerStorage } from "./MapleWithdrawalManagerStorage.s
 
 */
 
-contract MapleWithdrawalManager is IMapleWithdrawalManager, MapleWithdrawalManagerStorage, MapleProxiedInternals {
+contract MapleWithdrawalManager is VennFirewallConsumer, IMapleWithdrawalManager, MapleWithdrawalManagerStorage, MapleProxiedInternals {
 
     // NOTE: The following functions already check for paused state in the pool, therefore no need to check here.
     // * addShares
@@ -94,17 +95,17 @@ contract MapleWithdrawalManager is IMapleWithdrawalManager, MapleWithdrawalManag
     /*** Proxy Functions                                                                                                                ***/
     /**************************************************************************************************************************************/
 
-    function migrate(address migrator_, bytes calldata arguments_) external override {
+    function migrate(address migrator_, bytes calldata arguments_) external override firewallProtected {
         require(msg.sender == _factory(),        "WM:M:NOT_FACTORY");
         require(_migrate(migrator_, arguments_), "WM:M:FAILED");
     }
 
-    function setImplementation(address implementation_) external override {
+    function setImplementation(address implementation_) external override firewallProtected {
         require(msg.sender == _factory(), "WM:SI:NOT_FACTORY");
         _setImplementation(implementation_);
     }
 
-    function upgrade(uint256 version_, bytes calldata arguments_) external override {
+    function upgrade(uint256 version_, bytes calldata arguments_) external override firewallProtected {
         address poolDelegate_ = poolDelegate();
 
         IGlobalsLike mapleGlobals_ = IGlobalsLike(globals());
@@ -128,7 +129,7 @@ contract MapleWithdrawalManager is IMapleWithdrawalManager, MapleWithdrawalManag
         uint256 cycleDuration_,
         uint256 windowDuration_
     )
-        external override whenProtocolNotPaused onlyPoolDelegateOrProtocolAdmins
+        external override whenProtocolNotPaused onlyPoolDelegateOrProtocolAdmins firewallProtected
     {
         require(windowDuration_ != 0,              "WM:SEC:ZERO_WINDOW");
         require(windowDuration_ <= cycleDuration_, "WM:SEC:WINDOW_OOB");
@@ -173,7 +174,7 @@ contract MapleWithdrawalManager is IMapleWithdrawalManager, MapleWithdrawalManag
     /*** Exit Functions                                                                                                                 ***/
     /**************************************************************************************************************************************/
 
-    function addShares(uint256 shares_, address owner_) external override {
+    function addShares(uint256 shares_, address owner_) external override firewallProtected {
         require(msg.sender == poolManager, "WM:AS:NOT_POOL_MANAGER");
 
         uint256 exitCycleId_  = exitCycleId[owner_];
@@ -200,7 +201,7 @@ contract MapleWithdrawalManager is IMapleWithdrawalManager, MapleWithdrawalManag
         _emitUpdate(owner_, lockedShares_, exitCycleId_);
     }
 
-    function removeShares(uint256 shares_, address owner_) external override returns (uint256 sharesReturned_) {
+    function removeShares(uint256 shares_, address owner_) external override firewallProtected returns (uint256 sharesReturned_) {
         require(msg.sender == poolManager, "WM:RS:NOT_POOL_MANAGER");
 
         uint256 exitCycleId_  = exitCycleId[owner_];
@@ -233,7 +234,7 @@ contract MapleWithdrawalManager is IMapleWithdrawalManager, MapleWithdrawalManag
     }
 
     function processExit(uint256 requestedShares_, address owner_)
-        external override returns (uint256 redeemableShares_, uint256 resultingAssets_)
+        external override firewallProtected returns (uint256 redeemableShares_, uint256 resultingAssets_)
     {
         require(msg.sender == poolManager, "WM:PE:NOT_PM");
 
